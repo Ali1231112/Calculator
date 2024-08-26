@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Calculator</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        .calculator {
+            width: 400px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            background-color: #fff;
+            overflow: hidden;
+            position: relative;
+        }
+        .widget-container {
+            width: 100%;
+            height: 40px;
+            overflow-x: auto; /* Enable horizontal scrolling */
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            box-sizing: border-box;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #ccc;
+        }
+        .widget {
+            height: 30px;
+            line-height: 30px;
+            margin-right: 10px;
+            padding: 0 10px;
+            border-radius: 5px;
+            background-color: #e0e0e0;
+            white-space: nowrap; /* Prevent text from wrapping */
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .display {
+            width: 100%;
+            height: 60px;
+            text-align: right;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 24px;
+            box-sizing: border-box;
+            overflow-x: auto;
+            background-color: #f9f9f9;
+        }
+        .buttons-container {
+            flex: 1;
+            overflow-y: auto; /* Enable vertical scrolling */
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: 60px; /* Adjusted row height to fit buttons */
+            gap: 5px;
+            height: auto; /* Allow height to grow based on content */
+            box-sizing: border-box;
+        }
+        .button {
+            font-size: 16px; /* Adjusted font size for better fit */
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none; /* Prevent text selection during drag */
+        }
+        .button.operator {
+            background-color: #f0a;
+        }
+        .button.double {
+            grid-column: span 2; /* Span 2 columns for double buttons */
+        }
+        .button.shift {
+            grid-column: span 2; /* Span 2 columns for the shift button */
+        }
+        .catalogue {
+            display: none;
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            padding: 10px;
+            max-height: 200px;
+            width: calc(100% - 20px);
+            overflow-y: auto; /* Enable vertical scrolling */
+            overflow-x: hidden; /* Disable horizontal scrolling */
+            z-index: 10;
+        }
+        .catalogue.active {
+            display: block;
+        }
+        .button:hover {
+            background-color: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <div class="widget-container">
+            <div class="widget" onclick="showCatalogue('sine')">Sine Values</div>
+            <div class="widget" onclick="showCatalogue('tan')">Tangent Values</div>
+            <div class="widget" onclick="showCatalogue('cos')">Cosine Values</div>
+            <div class="widget" onclick="convert('toBinary')">Binary Conversion</div>
+            <div class="widget" onclick="convert('toDecimal')">Decimal Conversion</div>
+            <div class="widget" onclick="convert('toHex')">Hexadecimal Conversion</div>
+            <div class="widget" onclick="setDecimalPlaces()">Decimal Places</div>
+        </div>
+        <div class="display" id="display">0</div>
+        <div class="buttons-container">
+            <div class="buttons" id="buttons">
+                <div class="button" onclick="clearDisplay()">C</div>
+                <div class="button operator" onclick="appendToDisplay('/')">/</div>
+                <div class="button operator" onclick="appendToDisplay('*')">*</div>
+                <div class="button operator" onclick="appendToDisplay('-')">-</div>
+                <div class="button operator" onclick="appendToDisplay('+')">+</div>
+                <div class="button" onclick="appendToDisplay('7')">7</div>
+                <div class="button" onclick="appendToDisplay('8')">8</div>
+                <div class="button" onclick="appendToDisplay('9')">9</div>
+                <div class="button operator" onclick="calculate()">=</div>
+                <div class="button" onclick="appendToDisplay('4')">4</div>
+                <div class="button" onclick="appendToDisplay('5')">5</div>
+                <div class="button" onclick="appendToDisplay('6')">6</div>
+                <div class="button" onclick="appendToDisplay('.')">.</div>
+                <div class="button double" onclick="appendToDisplay('0')">0</div>
+                <div class="button" onclick="appendToDisplay('1')">1</div>
+                <div class="button" onclick="appendToDisplay('2')">2</div>
+                <div class="button" onclick="appendToDisplay('3')">3</div>
+                <div class="button double" onclick="appendFunction('sqrt')">√</div>
+                <div class="button double" onclick="appendFunction('power')">x^</div>
+                <div class="button double" onclick="appendFunction('square')">x²</div>
+                <div class="button shift" onclick="toggleShift()">Shift</div>
+            </div>
+        </div>
+        <div class="catalogue" id="catalogue">
+            <!-- Catalogue content will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        let isShiftActive = false;
+
+        function appendToDisplay(value) {
+            let display = document.getElementById('display');
+            if (display.innerText === '0' && value !== '.') {
+                display.innerText = value;
+            } else {
+                display.innerText += value;
+            }
+        }
+
+        function clearDisplay() {
+            document.getElementById('display').innerText = '0';
+        }
+
+        function calculate() {
+            let display = document.getElementById('display');
+            try {
+                let result = eval(display.innerText
+                    .replace('√', 'Math.sqrt')
+                    .replace('x^', '**')
+                    .replace('x²', '**2')
+                    .replace('x³', 'Math.pow')
+                );
+                display.innerText = result;
+            } catch (e) {
+                display.innerText = 'Error';
+            }
+        }
+
+        function appendFunction(func) {
+            let display = document.getElementById('display');
+            let value = display.innerText;
+            switch (func) {
+                case 'sqrt':
+                    display.innerText = `Math.sqrt(${value})`;
+                    break;
+                case 'power':
+                    display.innerText = `${value} ** `;
+                    break;
+                case 'square':
+                    display.innerText = `${value} ** 2`;
+                    break;
+                case 'cube':
+                    display.innerText = `Math.pow(${value}, 3)`;
+                    break;
+            }
+        }
+
+        function convert(action) {
+            let display = document.getElementById('display');
+            let value = display.innerText;
+            if (action === 'toBinary') {
+                // Convert decimal to binary
+                display.innerText = parseInt(value, 10).toString(2);
+            } else if (action === 'toDecimal') {
+                // Convert binary to decimal
+                display.innerText = parseInt(value, 2);
+            } else if (action === 'toHex') {
+                // Convert decimal to hexadecimal
+                display.innerText = parseInt(value, 10).toString(16).toUpperCase();
+            }
+        }
+
+        function setDecimalPlaces() {
+            let display = document.getElementById('display');
+            let value = display.innerText;
+            let decimalPlaces = prompt("Enter the number of decimal places:", "2");
+            if (decimalPlaces !== null && !isNaN(decimalPlaces)) {
+                decimalPlaces = parseInt(decimalPlaces, 10);
+                if (decimalPlaces >= 0) {
+                    let numValue = parseFloat(value);
+                    display.innerText = numValue.toFixed(decimalPlaces);
+                }
+            }
+        }
+
+        function toggleShift() {
+            isShiftActive = !isShiftActive;
+            let shiftButton = document.querySelector('.button.shift');
+            shiftButton.style.backgroundColor = isShiftActive ? '#e0e0e0' : '#f9f9f9';
+            updateShiftFunctions();
+        }
+
+        function updateShiftFunctions() {
+            let buttons = document.querySelectorAll('.button');
+            buttons.forEach(button => {
+                if (isShiftActive) {
+                    if (button.innerText === 'x²') {
+                        button.innerText = 'x³';
+                        button.setAttribute('onclick', 'appendFunction("cube")');
+                    }
+                    if (button.innerText === 'x^') {
+                        button.innerText = 'x^';
+                        button.setAttribute('onclick', 'appendFunction("power")');
+                    }
+                } else {
+                    if (button.innerText === 'x³') {
+                        button.innerText = 'x²';
+                        button.setAttribute('onclick', 'appendFunction("square")');
+                    }
+                }
+            });
+        }
+
+        function showCatalogue(type) {
+            let catalogue = document.getElementById('catalogue');
+            catalogue.innerHTML = ''; // Clear previous content
+
+            let content = '';
+
+            switch (type) {
+                case 'sine':
+                    content += '<h4>Sine Values</h4>';
+                    // Display sine values for numbers from 1 to 360
+                    for (let i = 1; i <= 360; i++) {
+                        content += `<div>sin(${i}) = ${Math.sin(i * Math.PI / 180).toFixed(4)}</div>`;
+                    }
+                    break;
+                case 'tan':
+                    content += '<h4>Tangent Values</h4>';
+                    // Display tangent values for numbers from 1 to 360
+                    for (let i = 1; i <= 360; i++) {
+                        content += `<div>tan(${i}) = ${Math.tan(i * Math.PI / 180).toFixed(4)}</div>`;
+                    }
+                    break;
+                case 'cos':
+                    content += '<h4>Cosine Values</h4>';
+                    // Display cosine values for numbers from 1 to 360
+                    for (let i = 1; i <= 360; i++) {
+                        content += `<div>cos(${i}) = ${Math.cos(i * Math.PI / 180).toFixed(4)}</div>`;
+                    }
+                    break;
+            }
+
+            catalogue.innerHTML = content;
+            catalogue.classList.add('active');
+        }
+
+        function handleKeyboardInput(event) {
+            const key = event.key;
+
+            // Number keys and decimal point
+            if ((key >= '0' && key <= '9') || key === '.') {
+                appendToDisplay(key);
+                return;
+            }
+
+            // Operator keys
+            switch (key) {
+                case '+':
+                case '-':
+                case '*':
+                case '/':
+                    appendToDisplay(key);
+                    break;
+                case 'Enter':
+                case '=':
+                    calculate();
+                    break;
+                case 'Backspace':
+                    let display = document.getElementById('display');
+                    display.innerText = display.innerText.slice(0, -1) || '0';
+                    break;
+                case 'Escape':
+                    clearDisplay();
+                    break;
+                case 'Shift':
+                    toggleShift();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('widget')) {
+                document.getElementById('catalogue').classList.remove('active');
+            }
+        });
+
+        document.addEventListener('keydown', handleKeyboardInput);
+    </script>
+</body>
+</html>
